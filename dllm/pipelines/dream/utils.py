@@ -135,7 +135,11 @@ class DreamPTCollator(transformers.DataCollatorForSeq2Seq):
 
     def __call__(self, features, return_tensors=None):
         outputs = super().__call__(features, return_tensors=return_tensors)
-        input_ids, labels, attention_mask = outputs["input_ids"], outputs["labels"], outputs["attention_mask"]
+        input_ids, labels, attention_mask = (
+            outputs["input_ids"],
+            outputs["labels"],
+            outputs["attention_mask"],
+        )
         bsz, seq_len = input_ids.shape
 
         # --- Random truncation for robustness ---

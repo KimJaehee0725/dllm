@@ -16,10 +16,12 @@ class ScriptArguments:
     model_name_or_path: str = "dllm-collection/ModernBERT-large-chat-v0"
     seed: int = 42
     visualize: bool = True
+
     def __post_init__(self):
         self.model_name_or_path = dllm.utils.resolve_with_base_env(
             self.model_name_or_path, "BASE_MODELS_DIR"
         )
+
 
 @dataclass
 class GeneratorConfig(llada.LLaDAGeneratorConfig):
@@ -30,9 +32,7 @@ class GeneratorConfig(llada.LLaDAGeneratorConfig):
     remasking: str = "low_confidence"
 
 
-parser = transformers.HfArgumentParser(
-    (ScriptArguments, GeneratorConfig)
-)
+parser = transformers.HfArgumentParser((ScriptArguments, GeneratorConfig))
 script_args, gen_config = parser.parse_args_into_dataclasses()
 transformers.set_seed(script_args.seed)
 
@@ -40,7 +40,9 @@ transformers.set_seed(script_args.seed)
 model = dllm.utils.get_model(model_args=script_args).eval()
 tokenizer = dllm.utils.get_tokenizer(model_args=script_args)
 generator = llada.LLaDAGenerator(model=model, tokenizer=tokenizer)
-terminal_visualizer = dllm.core.generation.visualizer.TerminalVisualizer(tokenizer=tokenizer)
+terminal_visualizer = dllm.core.generation.visualizer.TerminalVisualizer(
+    tokenizer=tokenizer
+)
 
 # --- Example 1: Batch generation ---
 print("\n" + "=" * 80)
@@ -67,4 +69,5 @@ for iter, s in enumerate(sequences):
     print(s.strip() if s.strip() else "<empty>")
 print("\n" + "=" * 80 + "\n")
 
-if script_args.visualize: terminal_visualizer.visualize(outputs.histories, rich=True)
+if script_args.visualize:
+    terminal_visualizer.visualize(outputs.histories, rich=True)

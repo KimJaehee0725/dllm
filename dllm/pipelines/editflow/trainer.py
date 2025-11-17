@@ -13,7 +13,10 @@ from dllm.pipelines.editflow.utils import pad_1d
 
 BLANK = -1
 
-def align_with_blanks(x0: List[int], x1: List[int], sub_cost: int = 1, gap_cost: int = 1) -> Dict:
+
+def align_with_blanks(
+    x0: List[int], x1: List[int], sub_cost: int = 1, gap_cost: int = 1
+) -> Dict:
     """
     Needleman–Wunsch global alignment of two integer sequences with:
         match cost = 0, substitution cost = sub_cost, gap cost = gap_cost.
@@ -21,48 +24,50 @@ def align_with_blanks(x0: List[int], x1: List[int], sub_cost: int = 1, gap_cost:
     """
     n, m = len(x0), len(x1)
     # DP tables
-    dp = [[0]*(m+1) for _ in range(n+1)]
-    ptr = [[None]*(m+1) for _ in range(n+1)]  # 'diag', 'up', 'left'
+    dp = [[0] * (m + 1) for _ in range(n + 1)]
+    ptr = [[None] * (m + 1) for _ in range(n + 1)]  # 'diag', 'up', 'left'
 
-    for i in range(1, n+1):
+    for i in range(1, n + 1):
         dp[i][0] = i * gap_cost
-        ptr[i][0] = 'up'
-    for j in range(1, m+1):
+        ptr[i][0] = "up"
+    for j in range(1, m + 1):
         dp[0][j] = j * gap_cost
-        ptr[0][j] = 'left'
+        ptr[0][j] = "left"
 
-    for i in range(1, n+1):
-        for j in range(1, m+1):
-            cost_diag = dp[i-1][j-1] + (0 if x0[i-1] == x1[j-1] else sub_cost)
-            cost_up   = dp[i-1][j] + gap_cost
-            cost_left = dp[i][j-1] + gap_cost
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            cost_diag = dp[i - 1][j - 1] + (0 if x0[i - 1] == x1[j - 1] else sub_cost)
+            cost_up = dp[i - 1][j] + gap_cost
+            cost_left = dp[i][j - 1] + gap_cost
             best = min(cost_diag, cost_up, cost_left)
             dp[i][j] = best
             if best == cost_diag:
-                ptr[i][j] = 'diag'
+                ptr[i][j] = "diag"
             elif best == cost_up:
-                ptr[i][j] = 'up'
+                ptr[i][j] = "up"
             else:
-                ptr[i][j] = 'left'
+                ptr[i][j] = "left"
 
     # traceback
     z0, z1 = [], []
     i, j = n, m
     while i > 0 or j > 0:
         p = ptr[i][j]
-        if p == 'diag':
-            z0.append(x0[i-1])
-            z1.append(x1[j-1])
-            i -= 1; j -= 1
-        elif p == 'up':
-            z0.append(x0[i-1])
+        if p == "diag":
+            z0.append(x0[i - 1])
+            z1.append(x1[j - 1])
+            i -= 1
+            j -= 1
+        elif p == "up":
+            z0.append(x0[i - 1])
             z1.append(BLANK)
             i -= 1
         else:  # 'left'
             z0.append(BLANK)
-            z1.append(x1[j-1])
+            z1.append(x1[j - 1])
             j -= 1
-    z0.reverse(); z1.reverse()
+    z0.reverse()
+    z1.reverse()
     # return Alignment(z0=z0, z1=z1)
     # return {"z0": z0, "z1": z1}
     return dict(z0=z0, z1=z1)
@@ -339,26 +344,52 @@ class EditFlowTrainer(transformers.Trainer):
             ps, ts, pi, ti, pd = [], [], [], [], []
             for e in edits:
                 if not (0 <= e.pos < cur_len):
-                    raise AssertionError(f"pos {e.pos} out of range {cur_len} for b={b}")
+                    raise AssertionError(
+                        f"pos {e.pos} out of range {cur_len} for b={b}"
+                    )
                 if e.kind == "SUB":
-                    ps.append(e.pos); ts.append(e.token)
+                    ps.append(e.pos)
+                    ts.append(e.token)
                 elif e.kind == "INS":
-                    pi.append(e.pos); ti.append(e.token)
+                    pi.append(e.pos)
+                    ti.append(e.token)
                 else:
                     pd.append(e.pos)
-            pos_sub.append(torch.tensor(ps, device=x_tok.device, dtype=torch.long) if ps else None)
-            tok_sub.append(torch.tensor(ts, device=x_tok.device, dtype=torch.long) if ts else None)
-            pos_ins.append(torch.tensor(pi, device=x_tok.device, dtype=torch.long) if pi else None)
-            tok_ins.append(torch.tensor(ti, device=x_tok.device, dtype=torch.long) if ti else None)
-            pos_del.append(torch.tensor(pd, device=x_tok.device, dtype=torch.long) if pd else None)
+            pos_sub.append(
+                torch.tensor(ps, device=x_tok.device, dtype=torch.long) if ps else None
+            )
+            tok_sub.append(
+                torch.tensor(ts, device=x_tok.device, dtype=torch.long) if ts else None
+            )
+            pos_ins.append(
+                torch.tensor(pi, device=x_tok.device, dtype=torch.long) if pi else None
+            )
+            tok_ins.append(
+                torch.tensor(ti, device=x_tok.device, dtype=torch.long) if ti else None
+            )
+            pos_del.append(
+                torch.tensor(pd, device=x_tok.device, dtype=torch.long) if pd else None
+            )
 
         loss_pos_terms = []
         for b in range(B):
             lp = x_tok.new_zeros(())
             if pos_sub[b] is not None:
-                lp = lp - (logQ_sub[b, pos_sub[b], tok_sub[b]] + safe_log(sub_rate_hat[b, pos_sub[b]])).sum()
+                lp = (
+                    lp
+                    - (
+                        logQ_sub[b, pos_sub[b], tok_sub[b]]
+                        + safe_log(sub_rate_hat[b, pos_sub[b]])
+                    ).sum()
+                )
             if pos_ins[b] is not None:
-                lp = lp - (logQ_ins[b, pos_ins[b], tok_ins[b]] + safe_log(ins_rate_hat[b, pos_ins[b]])).sum()
+                lp = (
+                    lp
+                    - (
+                        logQ_ins[b, pos_ins[b], tok_ins[b]]
+                        + safe_log(ins_rate_hat[b, pos_ins[b]])
+                    ).sum()
+                )
             if pos_del[b] is not None:
                 lp = lp - safe_log(del_rate_hat[b, pos_del[b]]).sum()
             loss_pos_terms.append(lp)

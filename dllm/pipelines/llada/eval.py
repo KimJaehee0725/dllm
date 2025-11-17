@@ -25,13 +25,14 @@ from lm_eval.models.utils import get_dtype
 import dllm
 from dllm.pipelines.llada import LLaDAGenerator, LLaDAGeneratorConfig
 
+
 @dataclass
 class LLaDAEvalConfig(LLaDAGeneratorConfig):
     max_new_tokens: int = 1024
     max_length: int = 4096
     steps: int = 1024
     block_length: int = 1024
-    
+
     pretrained: str = ""
     dtype: str | torch.dtype = "auto"
     batch_size: int = 32
@@ -48,7 +49,8 @@ class LLaDAEvalHarness(LM):
         **kwargs,
     ):
         super().__init__()
-        if config is None: config = LLaDAEvalConfig()
+        if config is None:
+            config = LLaDAEvalConfig()
 
         # Pull args from config, allow kwargs to override
         pretrained = kwargs.get("pretrained", config.pretrained)
@@ -63,28 +65,31 @@ class LLaDAEvalHarness(LM):
         block_length = kwargs.get("block_length", config.block_length)
         max_length = kwargs.get("max_length", config.max_length)
         remasking = kwargs.get("remasking", config.remasking)
-        
+
         accelerator = accelerate.Accelerator()
 
         # Get GLOBAL rank from torch.distributed (not accelerator)
         if torch.distributed.is_initialized():
-            self._rank = torch.distributed.get_rank()        # ← GLOBAL rank (0-15)
-            self._world_size = torch.distributed.get_world_size()  # ← GLOBAL world size (16)
+            self._rank = torch.distributed.get_rank()  # ← GLOBAL rank (0-15)
+            self._world_size = (
+                torch.distributed.get_world_size()
+            )  # ← GLOBAL world size (16)
         else:
             self._rank = 0
             self._world_size = 1
 
         # Use accelerator for device placement
-        self.model = dllm.utils.get_model(SimpleNamespace(
-            model_name_or_path=pretrained,
-            dtype=get_dtype(dtype)
-        ))
+        self.model = dllm.utils.get_model(
+            SimpleNamespace(model_name_or_path=pretrained, dtype=get_dtype(dtype))
+        )
         self.model.eval()
 
         if accelerator.num_processes > 1:
             # Let accelerator handle device placement
             self.model = accelerator.prepare(self.model)
-            self.device = accelerator.device  # ← Accelerator figures out local device correctly
+            self.device = (
+                accelerator.device
+            )  # ← Accelerator figures out local device correctly
             self.accelerator = accelerator
         else:
             # Single GPU
@@ -92,11 +97,10 @@ class LLaDAEvalHarness(LM):
             self.device = torch.device(device)
             self.accelerator = None
 
-        self.tokenizer = dllm.utils.get_tokenizer(SimpleNamespace(
-            model_name_or_path=pretrained, 
-            model=self.model
-            ))
-    
+        self.tokenizer = dllm.utils.get_tokenizer(
+            SimpleNamespace(model_name_or_path=pretrained, model=self.model)
+        )
+
         # generation params
         self.mask_id = self.tokenizer.mask_token_id
         self.batch_size = int(batch_size)
@@ -111,9 +115,11 @@ class LLaDAEvalHarness(LM):
         # loglikelihood params
         self.mc_num = int(mc_num)
         assert mc_num % self.batch_size == 0
-        self.sampling_eps = 0.   
+        self.sampling_eps = 0.0
 
-    def apply_chat_template(self, chat_history: list[dict[str, str]],add_generation_prompt: bool = True) -> str:
+    def apply_chat_template(
+        self, chat_history: list[dict[str, str]], add_generation_prompt: bool = True
+    ) -> str:
         """
         Method to apply a chat template to a list of chat history between user and model.
         """
@@ -132,18 +138,24 @@ class LLaDAEvalHarness(LM):
     @property
     def rank(self):
         return self._rank
-    
+
     @property
     def world_size(self):
         return self._world_size
 
-    def _forward_process(self, batch: torch.Tensor, prompt_index: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def _forward_process(
+        self, batch: torch.Tensor, prompt_index: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         b, l = batch.shape
 
         target_len = (l - prompt_index.sum()).item()
         k = torch.randint(1, target_len + 1, (), device=batch.device)
 
-        x = torch.round(torch.linspace(float(k), k + (b - 1) * (target_len / b), steps=b, device=batch.device)).long()
+        x = torch.round(
+            torch.linspace(
+                float(k), k + (b - 1) * (target_len / b), steps=b, device=batch.device
+            )
+        ).long()
         x = ((x - 1) % target_len) + 1
         assert x.min() >= 1 and x.max() <= target_len
 
@@ -153,15 +165,25 @@ class LLaDAEvalHarness(LM):
         for i in range(b):
             is_mask[i] = is_mask[i][torch.randperm(target_len)]
 
-        is_mask = torch.cat((torch.zeros(b, prompt_index.sum(), dtype=torch.bool, device=batch.device), is_mask), dim=1)
+        is_mask = torch.cat(
+            (
+                torch.zeros(
+                    b, prompt_index.sum(), dtype=torch.bool, device=batch.device
+                ),
+                is_mask,
+            ),
+            dim=1,
+        )
 
         noisy_batch = torch.where(is_mask, self.mask_id, batch)
 
         return noisy_batch, (x / target_len).unsqueeze(1).repeat(1, l)
 
     @torch.no_grad()
-    def get_logits(self, batch: torch.Tensor, prompt_index: torch.Tensor) -> torch.Tensor:
-        if self.cfg > 0.:
+    def get_logits(
+        self, batch: torch.Tensor, prompt_index: torch.Tensor
+    ) -> torch.Tensor:
+        if self.cfg > 0.0:
             assert len(prompt_index) == batch.shape[1]
             prompt_index = prompt_index.unsqueeze(0).repeat(batch.shape[0], 1)
             un_batch = batch.clone()
@@ -170,10 +192,10 @@ class LLaDAEvalHarness(LM):
 
         logits = self.model(batch).logits
 
-        if self.cfg > 0.:
+        if self.cfg > 0.0:
             logits, un_logits = torch.chunk(logits, 2, dim=0)
             logits = un_logits + (self.cfg + 1) * (logits - un_logits)
-        return logits[:, :batch.shape[1]]
+        return logits[:, : batch.shape[1]]
 
     @torch.no_grad()
     def get_loglikelihood(self, prefix: torch.Tensor, target: torch.Tensor) -> float:
@@ -189,37 +211,50 @@ class LLaDAEvalHarness(LM):
 
             logits = self.get_logits(perturbed_seq, prompt_index)
 
-            loss = F.cross_entropy(logits[mask_indices], seq[mask_indices], reduction="none") / p_mask[mask_indices]
+            loss = (
+                F.cross_entropy(
+                    logits[mask_indices], seq[mask_indices], reduction="none"
+                )
+                / p_mask[mask_indices]
+            )
             loss = loss.sum() / self.batch_size
             loss_acc.append(loss.item())
 
-        return - sum(loss_acc) / len(loss_acc)
+        return -sum(loss_acc) / len(loss_acc)
 
     @torch.no_grad()
-    def suffix_greedy_prediction(self, prefix: torch.Tensor, target: torch.Tensor) -> bool:
+    def suffix_greedy_prediction(
+        self, prefix: torch.Tensor, target: torch.Tensor
+    ) -> bool:
         if not self.is_check_greedy:
             return False
 
-        seq = torch.full((1, len(prefix) + len(target)), self.mask_id, device=self.device)
+        seq = torch.full(
+            (1, len(prefix) + len(target)), self.mask_id, device=self.device
+        )
         prompt_index = torch.arange(seq.shape[1], device=self.device) < len(prefix)
         prefix, target = prefix.to(self.device), target.to(self.device)
-        seq[0, :len(prefix)] = prefix
+        seq[0, : len(prefix)] = prefix
 
         for i in range(len(target)):
-            mask_index = (seq == self.mask_id)
+            mask_index = seq == self.mask_id
             logits = self.get_logits(seq, prompt_index)[mask_index]
             x0 = torch.argmax(logits, dim=-1)
 
             p = torch.softmax(logits.to(torch.float32), dim=-1)
-            confidence = torch.gather(p, dim=-1, index=torch.unsqueeze(x0, -1)).squeeze(dim=-1)
+            confidence = torch.gather(p, dim=-1, index=torch.unsqueeze(x0, -1)).squeeze(
+                dim=-1
+            )
             _, index = torch.sort(confidence, descending=True)
             x0[index[1:]] = self.mask_id
             seq[mask_index] = x0.clone()
-        correct = target == seq[0, len(prefix):]
+        correct = target == seq[0, len(prefix) :]
         correct = torch.all(correct)
         return correct
 
-    def _encode_pair(self, context: str, continuation: str) -> tuple[torch.Tensor, torch.Tensor]:
+    def _encode_pair(
+        self, context: str, continuation: str
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         n_spaces = len(context) - len(context.rstrip())
         if n_spaces > 0:
             continuation = context[-n_spaces:] + continuation
@@ -277,33 +312,40 @@ class LLaDAEvalHarness(LM):
                 "until": e["until"],
             }
 
-        ds = [{"question": req.args[0], "until": req.args[1]["until"]} for req in requests]
+        ds = [
+            {"question": req.args[0], "until": req.args[1]["until"]} for req in requests
+        ]
         ds = Dataset.from_list(ds)
         ds = ds.map(_tokenize)
         ds = ds.with_format("torch")
 
         out = []
         generator = LLaDAGenerator(model=self.model, tokenizer=self.tokenizer)
-        
+
         for elem in tqdm(ds, desc="Generating..."):
             prompt = [elem["question"].to(self.device)]
             stop_tokens = elem["until"]
             generated_ids = generator.generate(
-                inputs=prompt, 
-                steps=self.steps, 
-                max_new_tokens=self.max_new_tokens, 
-                block_length=self.block_length, 
-                temperature=0.0, 
-                cfg_scale=self.cfg, 
-                remasking=self.remasking)
-            generated_answer = self.tokenizer.decode(generated_ids[0][prompt[0].shape[0]:], skip_special_tokens=False)
+                inputs=prompt,
+                steps=self.steps,
+                max_new_tokens=self.max_new_tokens,
+                block_length=self.block_length,
+                temperature=0.0,
+                cfg_scale=self.cfg,
+                remasking=self.remasking,
+            )
+            generated_answer = self.tokenizer.decode(
+                generated_ids[0][prompt[0].shape[0] :], skip_special_tokens=False
+            )
             for stop_seq in stop_tokens:
                 if stop_seq in generated_answer:
                     generated_answer = generated_answer.split(stop_seq)[0]
 
             # remove special tokens
             generated_answer_ids = self.tokenizer(generated_answer)["input_ids"]
-            generated_answer = self.tokenizer.decode(generated_answer_ids, skip_special_tokens=True)
+            generated_answer = self.tokenizer.decode(
+                generated_answer_ids, skip_special_tokens=True
+            )
             out.append(generated_answer)
             if self.accelerator is not None:
                 self.accelerator.wait_for_everyone()

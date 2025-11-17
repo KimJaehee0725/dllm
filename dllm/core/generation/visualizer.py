@@ -13,7 +13,6 @@ from tqdm import tqdm
 from transformers import PreTrainedTokenizer
 
 
-
 @dataclass
 class BaseVisualizer(ABC):
     tokenizer: PreTrainedTokenizer
@@ -22,14 +21,15 @@ class BaseVisualizer(ABC):
     def visualize(self, history: list[torch.Tensor, list], **kwargs):
         raise NotImplementedError
 
+
 @dataclass
 class VideoVisualizer(BaseVisualizer):
 
     def visualize(
-        self, 
-        history: list[torch.Tensor, list], 
-        output_path: str = "visualization.gif", 
-        **kwargs
+        self,
+        history: list[torch.Tensor, list],
+        output_path: str = "visualization.gif",
+        **kwargs,
     ):
         raise NotImplementedError
 
@@ -38,17 +38,16 @@ class VideoVisualizer(BaseVisualizer):
 class TerminalVisualizer(BaseVisualizer):
 
     # Configuration (adjust as needed)
-    HEADER_SIZE = 3           # Fixed number of lines for the header (0 if show_header is False)
-    PROGRESS_SIZE = 3         # Fixed number of lines for the progress bar
-    PANEL_PADDING_TOP = 1     # Top padding of the Panel (padding=(top, side))
+    HEADER_SIZE = 3  # Fixed number of lines for the header (0 if show_header is False)
+    PROGRESS_SIZE = 3  # Fixed number of lines for the progress bar
+    PANEL_PADDING_TOP = 1  # Top padding of the Panel (padding=(top, side))
     PANEL_PADDING_BOTTOM = 1  # Bottom padding of the Panel
-    PANEL_PADDING_SIDE = 1    # Number of characters used for left and right padding
-    PANEL_BORDER = 2          # Number of columns taken by the Panel border (usually 2)
-    MIN_TOTAL_HEIGHT = 10     # Minimum terminal height (in lines)
-    MAX_TOTAL_HEIGHT = 60     # Maximum terminal height to prevent overflowing the terminal
+    PANEL_PADDING_SIDE = 1  # Number of characters used for left and right padding
+    PANEL_BORDER = 2  # Number of columns taken by the Panel border (usually 2)
+    MIN_TOTAL_HEIGHT = 10  # Minimum terminal height (in lines)
+    MAX_TOTAL_HEIGHT = 60  # Maximum terminal height to prevent overflowing the terminal
     DEFAULT_TERM_WIDTH = 120  # Default terminal width (in columns)
     ansi_escape = re.compile(r"\x1b\[[0-9;]*m")  # Regex to match ANSI escape codes
-
 
     def visualize(
         self,
@@ -74,19 +73,29 @@ class TerminalVisualizer(BaseVisualizer):
                     # build per-sequence history
                     seq_history = [step[b_idx].unsqueeze(0) for step in history]
                     self.visualize_one_history(
-                        seq_history, fps, rich, title=f"{title} (Batch {b_idx})",
-                        max_chars=max_chars, every_n_steps=every_n_steps,
-                        show_header=show_header, skip_special_tokens=skip_special_tokens
+                        seq_history,
+                        fps,
+                        rich,
+                        title=f"{title} (Batch {b_idx})",
+                        max_chars=max_chars,
+                        every_n_steps=every_n_steps,
+                        show_header=show_header,
+                        skip_special_tokens=skip_special_tokens,
                     )
             else:
                 # no batch, just visualize normally
                 self.visualize_one_history(
-                    history, fps, rich, title, max_chars, every_n_steps,
-                    show_header, skip_special_tokens
+                    history,
+                    fps,
+                    rich,
+                    title,
+                    max_chars,
+                    every_n_steps,
+                    show_header,
+                    skip_special_tokens,
                 )
         except Exception as e:
             print(f"(Visualization skipped due to error: {e})")
-
 
     def visualize_one_history(
         self,
@@ -95,7 +104,7 @@ class TerminalVisualizer(BaseVisualizer):
         rich: bool = True,
         title: str = "dllm",
         max_chars: int = None,
-        every_n_steps: int = 1,          # re-render frequency (perf knob)
+        every_n_steps: int = 1,  # re-render frequency (perf knob)
         show_header: bool = True,
         skip_special_tokens: bool = False,  # NEW ARGUMENT
     ) -> None:
@@ -122,22 +131,30 @@ class TerminalVisualizer(BaseVisualizer):
             from rich.text import Text
             from rich.panel import Panel
             from rich.progress import (
-                Progress, BarColumn, TextColumn, TimeRemainingColumn,
-                MofNCompleteColumn, SpinnerColumn
+                Progress,
+                BarColumn,
+                TextColumn,
+                TimeRemainingColumn,
+                MofNCompleteColumn,
+                SpinnerColumn,
             )
             from rich.layout import Layout
+
             _RICH_IMPORTED = True
         except Exception:
             _RICH_IMPORTED = False
 
         try:
             from tqdm import tqdm
+
             _TQDM_IMPORTED = True
         except Exception:
             _TQDM_IMPORTED = False
 
         if self.tokenizer is None:
-            raise ValueError("TerminalVisualizer.tokenizer must be set to a valid tokenizer.")
+            raise ValueError(
+                "TerminalVisualizer.tokenizer must be set to a valid tokenizer."
+            )
 
         tokenizer = self.tokenizer
         specials: set[int] = set(getattr(tokenizer, "all_special_ids", []) or [])
@@ -172,18 +189,27 @@ class TerminalVisualizer(BaseVisualizer):
             """
             plain = strip_ansi(text or "")
             # inner width = console width minus left/right panel paddings & border
-            inner_width = max(10, console_width - 2 * self.PANEL_PADDING_SIDE - self.PANEL_BORDER)
+            inner_width = max(
+                10, console_width - 2 * self.PANEL_PADDING_SIDE - self.PANEL_BORDER
+            )
             lines = 0
             # preserve existing newlines: wrap each paragraph separately
-            for para in (plain.splitlines() or [""]):
+            for para in plain.splitlines() or [""]:
                 if para.strip() == "":
                     lines += 1
                     continue
-                wrapped = textwrap.wrap(para, width=inner_width, replace_whitespace=False, drop_whitespace=False)
+                wrapped = textwrap.wrap(
+                    para,
+                    width=inner_width,
+                    replace_whitespace=False,
+                    drop_whitespace=False,
+                )
                 lines += max(1, len(wrapped))
-            text_block_lines = lines + self.PANEL_PADDING_TOP + self.PANEL_PADDING_BOTTOM
+            text_block_lines = (
+                lines + self.PANEL_PADDING_TOP + self.PANEL_PADDING_BOTTOM
+            )
             extra = 2  # for panel title / subtitle / small margin
-            header_h = (self.HEADER_SIZE if show_header else 0)
+            header_h = self.HEADER_SIZE if show_header else 0
             total = header_h + text_block_lines + self.PROGRESS_SIZE + extra
             # clamp
             total = max(self.MIN_TOTAL_HEIGHT, min(total, self.MAX_TOTAL_HEIGHT))
@@ -216,10 +242,12 @@ class TerminalVisualizer(BaseVisualizer):
             pbar = tqdm(total=total_steps, desc="Diffusion", leave=True)
             for i, toks in enumerate(history, start=1):
                 pbar.update(1)
-                pbar.set_postfix({
-                    "masks": self._count_masks(toks),
-                    "pct": f"{int(100 * i / max(total_steps, 1))}%",
-                })
+                pbar.set_postfix(
+                    {
+                        "masks": self._count_masks(toks),
+                        "pct": f"{int(100 * i / max(total_steps, 1))}%",
+                    }
+                )
                 if sleep_s > 0:
                     time.sleep(sleep_s)
             pbar.close()
@@ -230,10 +258,19 @@ class TerminalVisualizer(BaseVisualizer):
 
         # ---------- rich live UI ----------
         # replaced fixed height=100 with the estimated height from history[-1]
-        console = Console(force_terminal=True, color_system="truecolor", width=term_width, height=est_height)
+        console = Console(
+            force_terminal=True,
+            color_system="truecolor",
+            width=term_width,
+            height=est_height,
+        )
         layout = Layout()
         layout.split_column(
-            Layout(name="header", size=3) if show_header else Layout(name="header", size=0),
+            (
+                Layout(name="header", size=3)
+                if show_header
+                else Layout(name="header", size=0)
+            ),
             Layout(name="text", ratio=1),
             Layout(name="progress", size=3),
         )
@@ -252,7 +289,9 @@ class TerminalVisualizer(BaseVisualizer):
         )
 
         init_masks = self._count_masks(history[0]) if history else 0
-        task_id = progress.add_task("Generating", total=total_steps, masks=init_masks, pct="0%")
+        task_id = progress.add_task(
+            "Generating", total=total_steps, masks=init_masks, pct="0%"
+        )
 
         with Live(layout, console=console, refresh_per_second=max(1, fps)):
             for step_idx, toks in enumerate(history, start=1):
@@ -266,13 +305,23 @@ class TerminalVisualizer(BaseVisualizer):
                 progress.update(task_id, advance=1, masks=masks_remaining, pct=pct)
 
                 # text panel: decode whole sequence (avoids Ġ/Ċ artifacts)
-                if every_n_steps <= 1 or (step_idx % every_n_steps == 0) or step_idx in (1, total_steps):
-                    text_str = self._detok(toks, skip_special_tokens=skip_special_tokens)
+                if (
+                    every_n_steps <= 1
+                    or (step_idx % every_n_steps == 0)
+                    or step_idx in (1, total_steps)
+                ):
+                    text_str = self._detok(
+                        toks, skip_special_tokens=skip_special_tokens
+                    )
                     text_str = self._truncate(text_str, max_chars)
                     text_rich = Text.from_ansi(text_str) if text_str else Text("")
                     layout["text"].update(
                         Panel(
-                            text_rich if text_rich.plain else Text("[dim]— no tokens —[/dim]"),
+                            (
+                                text_rich
+                                if text_rich.plain
+                                else Text("[dim]— no tokens —[/dim]")
+                            ),
                             title="[bold]Generated Text",
                             subtitle=f"[dim]Step {step_idx}/{total_steps}[/dim]",
                             border_style="cyan",

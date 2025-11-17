@@ -31,7 +31,8 @@ def get_model(
     # Device map: skip when ZeRO-3
     device_map = (
         {"": accelerate.PartialState().local_process_index}
-        if not transformers.modeling_utils.is_deepspeed_zero3_enabled() and torch.cuda.is_available()
+        if not transformers.modeling_utils.is_deepspeed_zero3_enabled()
+        and torch.cuda.is_available()
         else None
     )
 
@@ -45,15 +46,17 @@ def get_model(
         )
 
     params = {
-        'dtype': dtype,
-        'device_map': device_map,
-        'quantization_config': quant_config,
-        'attn_implementation': attn_implementation,
-        'config': config,
+        "dtype": dtype,
+        "device_map": device_map,
+        "quantization_config": quant_config,
+        "attn_implementation": attn_implementation,
+        "config": config,
     }
 
     try:
-        model = transformers.AutoModelForMaskedLM.from_pretrained(model_name_or_path, **params)
+        model = transformers.AutoModelForMaskedLM.from_pretrained(
+            model_name_or_path, **params
+        )
     except:
         model = transformers.AutoModel.from_pretrained(model_name_or_path, **params)
 
@@ -84,7 +87,11 @@ def get_tokenizer(model_args) -> transformers.PreTrainedTokenizer:
     from dllm.pipelines.llada.models.modeling_lladamoe import LLaDAMoEModelLM
     from dllm.pipelines.dream.models.modeling_dream import DreamModel
     from dllm.pipelines.rnd.models.modeling_rnd import RND1LM
-    from transformers import BertPreTrainedModel, RobertaPreTrainedModel, ModernBertPreTrainedModel
+    from transformers import (
+        BertPreTrainedModel,
+        RobertaPreTrainedModel,
+        ModernBertPreTrainedModel,
+    )
 
     model_name_or_path = getattr(model_args, "model_name_or_path")
 
@@ -96,9 +103,12 @@ def get_tokenizer(model_args) -> transformers.PreTrainedTokenizer:
 
     assert tokenizer.eos_token != None or tokenizer.pad_token != None
 
-    if not tokenizer.pad_token: tokenizer.pad_token = tokenizer.eos_token
-    if not tokenizer.eos_token: tokenizer.eos_token = tokenizer.pad_token
-    if not tokenizer.bos_token: tokenizer.bos_token = tokenizer.pad_token
+    if not tokenizer.pad_token:
+        tokenizer.pad_token = tokenizer.eos_token
+    if not tokenizer.eos_token:
+        tokenizer.eos_token = tokenizer.pad_token
+    if not tokenizer.bos_token:
+        tokenizer.bos_token = tokenizer.pad_token
 
     # If model is not provided, return as-is
     model_cfg = transformers.AutoConfig.from_pretrained(model_name_or_path)
@@ -109,7 +119,7 @@ def get_tokenizer(model_args) -> transformers.PreTrainedTokenizer:
         tokenizer.add_special_tokens({"mask_token": "<|mdm_mask|>"})
         tokenizer.eot_token = "<|eot_id|>"
         # tokenizer.eot_token_id = tokenizer.convert_tokens_to_ids(tokenizer.eot_token) # can not do this for llada base directly
-        # TODO: for llada base, add special_tokens = {"<|start_header_id|>": 126346, "<|end_header_id|>": 126347, "<|eot_id|>": 126348} 
+        # TODO: for llada base, add special_tokens = {"<|start_header_id|>": 126346, "<|end_header_id|>": 126347, "<|eot_id|>": 126348}
         # fix bugs in chat template
         tokenizer.chat_template = """\
 {% set loop_messages = messages %}
@@ -133,7 +143,10 @@ def get_tokenizer(model_args) -> transformers.PreTrainedTokenizer:
         tokenizer.eot_token_id = tokenizer.convert_tokens_to_ids(tokenizer.eot_token)
     elif issubclass(model_cls, RND1LM):
         tokenizer.add_special_tokens({"mask_token": "<|mask|>"})
-    elif issubclass(model_cls, (BertPreTrainedModel, RobertaPreTrainedModel, ModernBertPreTrainedModel)):
+    elif issubclass(
+        model_cls,
+        (BertPreTrainedModel, RobertaPreTrainedModel, ModernBertPreTrainedModel),
+    ):
         tokenizer.eot_token = "[/Answer]"
         tokenizer.chat_template = """\
 {% if messages[0]['role'] == 'system' %}

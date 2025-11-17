@@ -36,14 +36,14 @@ class EditFlowLLaDAModel(llada.LLaDAModelLM):
         input_ids: torch.LongTensor,
         attention_mask: torch.Tensor | None = None,
         t: torch.Tensor | None = None,
-        **kwargs
+        **kwargs,
     ):
         # TODO: time embedding
         output = super().forward(
             input_ids=input_ids,
             attention_mask=attention_mask,
             output_hidden_states=True,
-            **kwargs
+            **kwargs,
         )
         h = output["hidden_states"][-1]  # final hidden states
         # Position heads

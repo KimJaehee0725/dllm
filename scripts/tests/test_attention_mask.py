@@ -31,30 +31,30 @@ def _forward_variants(model):
     device = model.device
 
     # A: no padding
-    a_ids  = torch.tensor([[1, 2, 3, 4]], device=device)
+    a_ids = torch.tensor([[1, 2, 3, 4]], device=device)
     a_mask = torch.tensor([[1, 1, 1, 1]], device=device)
 
     # B: left-pad a 0
-    b_ids  = torch.tensor([[0, 1, 2, 3, 4]], device=device)
+    b_ids = torch.tensor([[0, 1, 2, 3, 4]], device=device)
     b_mask = torch.tensor([[0, 1, 1, 1, 1]], device=device)
 
     # C: right-pad a 0
-    c_ids  = torch.tensor([[1, 2, 3, 4, 0]], device=device)
+    c_ids = torch.tensor([[1, 2, 3, 4, 0]], device=device)
     c_mask = torch.tensor([[1, 1, 1, 1, 0]], device=device)
 
     # D: same as A but attention_mask=None
-    d_ids  = torch.tensor([[1, 2, 3, 4]], device=device)
+    d_ids = torch.tensor([[1, 2, 3, 4]], device=device)
     d_mask = None
 
     # E: same as A but omit attention_mask entirely
-    e_ids  = torch.tensor([[1, 2, 3, 4]], device=device)
+    e_ids = torch.tensor([[1, 2, 3, 4]], device=device)
 
     with torch.no_grad():
-        out_A = model(input_ids=a_ids, attention_mask=a_mask).logits            # [1,4,H]
-        out_B = model(input_ids=b_ids, attention_mask=b_mask).logits[:, 1:]     # [1,4,H]
-        out_C = model(input_ids=c_ids, attention_mask=c_mask).logits[:, :-1]    # [1,4,H]
-        out_D = model(input_ids=d_ids, attention_mask=d_mask).logits            # [1,4,H]
-        out_E = model(input_ids=e_ids).logits                                    # [1,4,H]
+        out_A = model(input_ids=a_ids, attention_mask=a_mask).logits  # [1,4,H]
+        out_B = model(input_ids=b_ids, attention_mask=b_mask).logits[:, 1:]  # [1,4,H]
+        out_C = model(input_ids=c_ids, attention_mask=c_mask).logits[:, :-1]  # [1,4,H]
+        out_D = model(input_ids=d_ids, attention_mask=d_mask).logits  # [1,4,H]
+        out_E = model(input_ids=e_ids).logits  # [1,4,H]
 
     return {"A": out_A, "B": out_B, "C": out_C, "D": out_D, "E": out_E}
 
@@ -62,18 +62,19 @@ def _forward_variants(model):
 def _assert_invariance(outs: dict, tag: str):
     ref = outs["A"]
     for k in ("B", "C", "D", "E"):
-        assert torch.allclose(ref, outs[k], atol=ERROR_THRESHOLD, rtol=ERROR_THRESHOLD), \
-            f"[{tag}] Mismatch A vs {k}"
+        assert torch.allclose(
+            ref, outs[k], atol=ERROR_THRESHOLD, rtol=ERROR_THRESHOLD
+        ), f"[{tag}] Mismatch A vs {k}"
 
 
 @pytest.mark.parametrize(
     "repo, attn_impl, human_name",
     [
-        ("GSAI-ML/LLaDA-8B-Base",               None,   "LLaDA Base"),
-        ("inclusionAI/LLaDA-MoE-7B-A1B-Base",   None,   "LLaDA MoE"),
-        ("Dream-org/Dream-v0-Base-7B",          None,   "Dream Base"),
-        ("radicalnumerics/RND1-Base-0910",      None,   "RND Base (native)"),
-        ("radicalnumerics/RND1-Base-0910",      "sdpa", "RND Base (SDPA)"),
+        ("GSAI-ML/LLaDA-8B-Base", None, "LLaDA Base"),
+        ("inclusionAI/LLaDA-MoE-7B-A1B-Base", None, "LLaDA MoE"),
+        ("Dream-org/Dream-v0-Base-7B", None, "Dream Base"),
+        ("radicalnumerics/RND1-Base-0910", None, "RND Base (native)"),
+        ("radicalnumerics/RND1-Base-0910", "sdpa", "RND Base (SDPA)"),
     ],
 )
 def test_attention_mask_invariance(repo, attn_impl, human_name):
@@ -101,7 +102,8 @@ def test_attention_mask_invariance(repo, attn_impl, human_name):
 
     print(f"✅ {human_name} attention mask invariance passed within {ERROR_THRESHOLD}.")
     del model
-    gc.collect(); _cuda_cleanup()
+    gc.collect()
+    _cuda_cleanup()
 
 
 def test_rnd_native_vs_sdpa_equivalence():
@@ -126,7 +128,7 @@ def test_rnd_native_vs_sdpa_equivalence():
     ).eval()
 
     outs_native = _forward_variants(model_native)  # expects helper from your file
-    outs_sdpa   = _forward_variants(model_sdpa)
+    outs_sdpa = _forward_variants(model_sdpa)
 
     for k in ("A", "B", "C", "D", "E"):
         assert torch.allclose(

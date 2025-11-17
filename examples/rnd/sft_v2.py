@@ -44,6 +44,7 @@ class ModelArguments(dllm.utils.ModelArguments):
     moe_backend: str = "hf"
     attn_implementation: str = "sdpa"
 
+
 @dataclass
 class DataArguments(dllm.utils.DataArguments):
     dataset_args: str = "HuggingFaceTB/smoltalk[train:10000,test:1000]"
@@ -61,7 +62,9 @@ class TrainingArguments(dllm.utils.TrainingArguments):
     )
     freeze_gate: bool = field(
         default=True,
-        metadata={"help": "If True, freeze routing gate parameters (e.g., MoE router/gating layers)."},
+        metadata={
+            "help": "If True, freeze routing gate parameters (e.g., MoE router/gating layers)."
+        },
     )
     freeze_embedding: bool = field(
         default=False,
@@ -102,7 +105,10 @@ def train():
     # ----- Dataset ----------------------------------------------------------------
     def sft_map_fn(row) -> dict:
         prompt_tokens = tokenizer.apply_chat_template(
-            row["messages"][:-1], tokenize=True, add_generation_prompt=True, enable_thinking=False
+            row["messages"][:-1],
+            tokenize=True,
+            add_generation_prompt=True,
+            enable_thinking=False,
         )
         prompt_response_tokens = tokenizer.apply_chat_template(
             row["messages"], tokenize=True, add_generation_prompt=False
@@ -152,10 +158,15 @@ def train():
             # TODO -> FIXED: clip all relevant tensors to a common seq_len
             # Determine common length across present tensors
             import torch
+
             keys_to_clip = [k for k in ("input_ids", "labels") if k in outputs]
             if keys_to_clip:
                 # Get smallest seq_len to avoid out-of-bounds
-                min_len = min(outputs[k].size(1) for k in keys_to_clip if isinstance(outputs[k], torch.Tensor))
+                min_len = min(
+                    outputs[k].size(1)
+                    for k in keys_to_clip
+                    if isinstance(outputs[k], torch.Tensor)
+                )
                 for k in keys_to_clip:
                     t = outputs[k]
                     if isinstance(t, torch.Tensor) and t.size(1) != min_len:

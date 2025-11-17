@@ -71,5 +71,7 @@ class TrainingArguments(transformers.TrainingArguments):
     def __post_init__(self):
         super().__post_init__()
         if self.group_by_length:
-            logger.info("training_args.group_by_length=True: preprocessing "
-                        "may take some time after `trainer.train()` starts.")
+            logger.info(
+                "training_args.group_by_length=True: preprocessing "
+                "may take some time after `trainer.train()` starts."
+            )

@@ -91,24 +91,32 @@ def load_peft(
     model: transformers.PreTrainedModel, model_args: "ModelArguments"
 ) -> transformers.PreTrainedModel:
     """
-    e.g., 
+    e.g.,
     --modules_to_save "lm_head" --target_modules "q_proj,k_proj,v_proj,o_proj,up_proj,down_proj,gate_proj"
     --target_modules "all-linear"
     """
     if not getattr(model_args, "lora", False):
         return model
-    target_modules = model_args.target_modules.split(",") if model_args.target_modules else None
+    target_modules = (
+        model_args.target_modules.split(",") if model_args.target_modules else None
+    )
     # if it’s a single 'all-linear', drop the list and use the string directly
-    if target_modules and len(target_modules) == 1 and target_modules[0].strip() == "all-linear":
+    if (
+        target_modules
+        and len(target_modules) == 1
+        and target_modules[0].strip() == "all-linear"
+    ):
         target_modules = target_modules[0]
-    modules_to_save = model_args.modules_to_save.split(",") if model_args.modules_to_save else None
+    modules_to_save = (
+        model_args.modules_to_save.split(",") if model_args.modules_to_save else None
+    )
     peft_config = peft.LoraConfig(
         r=model_args.r,
         target_modules=target_modules,
         lora_alpha=model_args.lora_alpha,
         lora_dropout=model_args.lora_dropout,
         bias=model_args.bias,
-        modules_to_save = modules_to_save,
+        modules_to_save=modules_to_save,
     )
     model = peft.get_peft_model(model, peft_config)
     if accelerate.PartialState().is_main_process:
@@ -132,7 +140,7 @@ def print_args_main(
         # keep it tiny: just show first few entries
         short = {k: d[k] for k in list(d)}  # adjust number as you like
         print_main(f"{name}:")
-        pprint_main(short, width=100, compact=True, sort_dicts=False) 
+        pprint_main(short, width=100, compact=True, sort_dicts=False)
     print_main("============================\n")
 
 
@@ -180,7 +188,9 @@ def initial_training_setup(
 
 
 def disable_dataset_caching():
-    from datasets import disable_caching; disable_caching()
+    from datasets import disable_caching
+
+    disable_caching()
     tmp_root = f"/tmp/hf_cache_rank{accelerate.PartialState().process_index}"
     os.environ["HF_DATASETS_CACHE"] = tmp_root
     os.environ["HF_DATASETS_TEMP_DIR"] = tmp_root

@@ -7,7 +7,6 @@ import accelerate
 
 import dllm
 from dllm.pipelines import editflow
-
 logger = dllm.utils.get_default_logger(__name__)
 
 
@@ -161,7 +160,7 @@ def train(
                 mask_prompt_loss=data_args.mask_prompt_loss,
             )
             dataset = dataset.map(
-                map_fn, 
+                map_fn,
                 num_proc=data_args.num_proc,
                 desc="Mapping dataset to SFT format",
             )

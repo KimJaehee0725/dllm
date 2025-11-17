@@ -10,7 +10,11 @@ import torch
 import torch.nn.functional as F
 
 from dllm.utils.generation_utils import get_num_transfer_tokens
-from dllm.core.generation.generator import GeneratorOutput, GeneratorConfig, BaseGenerator
+from dllm.core.generation.generator import (
+    GeneratorOutput,
+    GeneratorConfig,
+    BaseGenerator,
+)
 
 
 def add_gumbel_noise(logits: torch.Tensor, temperature: float) -> torch.Tensor:
@@ -30,7 +34,9 @@ def add_gumbel_noise(logits: torch.Tensor, temperature: float) -> torch.Tensor:
 @dataclass
 class LLaDAGeneratorConfig(GeneratorConfig):
     max_new_tokens: int = 128
-    max_length: int = None  # There's no explicit length_limit except for the tokenizer/model context
+    max_length: int = (
+        None  # There's no explicit length_limit except for the tokenizer/model context
+    )
     block_length: int = 128
     steps: int = 128
     temperature: float = 0.0
@@ -45,9 +51,9 @@ class LLaDAGenerator(BaseGenerator):
     @torch.no_grad()
     def generate(
         self,
-        inputs: list[torch.Tensor | list], 
-        config: LLaDAGeneratorConfig | None = None, 
-        **kwargs
+        inputs: list[torch.Tensor | list],
+        config: LLaDAGeneratorConfig | None = None,
+        **kwargs,
     ) -> GeneratorOutput | torch.Tensor:
         if config is None:
             config = LLaDAGeneratorConfig()
@@ -103,7 +109,9 @@ class LLaDAGenerator(BaseGenerator):
         # Tokens from `cfg_keep_tokens` should *not* be treated as "given" for CFG
         unmasked_index = (x != mask_id) & (x != eos_id)
         if not (cfg_keep_tokens is None or len(cfg_keep_tokens) == 0):
-            keep_mask = torch.isin(x, torch.as_tensor(cfg_keep_tokens, device=self.model.device))
+            keep_mask = torch.isin(
+                x, torch.as_tensor(cfg_keep_tokens, device=self.model.device)
+            )
             unmasked_index = unmasked_index & ~keep_mask
 
         # ----- Block scheduling over the appended mask tail -----
@@ -146,15 +154,21 @@ class LLaDAGenerator(BaseGenerator):
                     un_x = x.clone()
                     un_x[unmasked_index] = mask_id
                     x_ = torch.cat([x, un_x], dim=0)
-                    logits = self.model(x_, attention_mask=attention_mask).logits  # Use attention mask here
+                    logits = self.model(
+                        x_, attention_mask=attention_mask
+                    ).logits  # Use attention mask here
                     logits, un_logits = torch.chunk(logits, 2, dim=0)
                     logits = un_logits + (cfg_scale + 1) * (logits - un_logits)
                 else:
-                    logits = self.model(x, attention_mask=attention_mask).logits  # Use attention mask here
+                    logits = self.model(
+                        x, attention_mask=attention_mask
+                    ).logits  # Use attention mask here
 
                 # Argmax decoding with optional Gumbel-Max noise for exploration
                 logits_with_noise = add_gumbel_noise(logits, temperature=temperature)
-                x0 = torch.argmax(logits_with_noise, dim=-1)  # [B, T] predicted token ids
+                x0 = torch.argmax(
+                    logits_with_noise, dim=-1
+                )  # [B, T] predicted token ids
 
                 # Per-position confidence used to pick which masks to commit this step
                 if remasking == "low_confidence":
@@ -180,14 +194,19 @@ class LLaDAGenerator(BaseGenerator):
                 )  # consider masked positions only
 
                 # Pick exactly `num_transfer_tokens[j, i]` highest-confidence positions per sample
-                transfer_index = torch.zeros_like(x0, dtype=torch.bool, device=x0.device)
+                transfer_index = torch.zeros_like(
+                    x0, dtype=torch.bool, device=x0.device
+                )
                 for j in range(confidence.shape[0]):
-                    _, select_index = torch.topk(confidence[j], k=num_transfer_tokens[j, i])
+                    _, select_index = torch.topk(
+                        confidence[j], k=num_transfer_tokens[j, i]
+                    )
                     transfer_index[j, select_index] = True
 
                 # Commit chosen predictions into the canvas
                 x[transfer_index] = x0[transfer_index]
-                if histories is not None: histories.append(x.clone())
+                if histories is not None:
+                    histories.append(x.clone())
 
         # ----- Output format -----
         if not return_dict_in_generate:
@@ -197,10 +216,7 @@ class LLaDAGenerator(BaseGenerator):
 
     @torch.no_grad()
     def infill(
-        self,
-        inputs: list[torch.Tensor | list], 
-        config, 
-        **kwargs
+        self, inputs: list[torch.Tensor | list], config, **kwargs
     ) -> GeneratorOutput | torch.Tensor:
         """
         Fill in-place the <|mdm_mask|> tokens contained in `inputs`.
@@ -259,7 +275,9 @@ class LLaDAGenerator(BaseGenerator):
         # Tokens from `cfg_keep_tokens` should *not* be treated as "given" for CFG
         unmasked_index = (x != mask_id) & (x != eos_id)
         if not (cfg_keep_tokens is None or len(cfg_keep_tokens) == 0):
-            keep_mask = torch.isin(x, torch.as_tensor(cfg_keep_tokens, device=self.model.device))
+            keep_mask = torch.isin(
+                x, torch.as_tensor(cfg_keep_tokens, device=self.model.device)
+            )
             unmasked_index = unmasked_index & ~keep_mask
 
         # ----- Blockwise schedule over the *entire* (padded) sequence -----
@@ -305,11 +323,15 @@ class LLaDAGenerator(BaseGenerator):
                     un_x = x.clone()
                     un_x[unmasked_index] = mask_id
                     x_ = torch.cat([x, un_x], dim=0)
-                    logits = self.model(x_, attention_mask=attention_mask).logits  # Use attention mask here
+                    logits = self.model(
+                        x_, attention_mask=attention_mask
+                    ).logits  # Use attention mask here
                     logits, un_logits = torch.chunk(logits, 2, dim=0)
                     logits = un_logits + (cfg_scale + 1) * (logits - un_logits)
                 else:
-                    logits = self.model(x, attention_mask=attention_mask).logits  # Use attention mask here
+                    logits = self.model(
+                        x, attention_mask=attention_mask
+                    ).logits  # Use attention mask here
 
                 # Greedy with optional Gumbel-Max noise
                 logits_with_noise = add_gumbel_noise(logits, temperature=temperature)
@@ -347,7 +369,8 @@ class LLaDAGenerator(BaseGenerator):
 
                 # Commit selected predictions into the canvas
                 x[transfer_index] = x0[transfer_index]
-                if histories is not None: histories.append(x.clone())
+                if histories is not None:
+                    histories.append(x.clone())
 
         # ----- Output format -----
         if not return_dict_in_generate:

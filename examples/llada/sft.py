@@ -35,8 +35,8 @@ import transformers
 import accelerate
 
 import dllm
-
 logger = dllm.utils.get_default_logger(__name__)
+
 
 @dataclass
 class ModelArguments(dllm.utils.ModelArguments):
@@ -86,7 +86,7 @@ def train():
                 mask_prompt_loss=data_args.mask_prompt_loss,
             )
             dataset = dataset.map(
-                map_fn, 
+                map_fn,
                 num_proc=data_args.num_proc,
                 desc="Mapping dataset to SFT format",
             )

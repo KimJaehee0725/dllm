@@ -44,6 +44,7 @@ class ModelArguments(dllm.utils.ModelArguments):
     moe_backend: str = "hf"
     attn_implementation: str = "sdpa"
 
+
 @dataclass
 class DataArguments(dllm.utils.DataArguments):
     dataset_args: str = "HuggingFaceTB/smoltalk[train:10000,test:1000]"
@@ -61,7 +62,9 @@ class TrainingArguments(dllm.utils.TrainingArguments):
     )
     freeze_gate: bool = field(
         default=True,
-        metadata={"help": "If True, freeze routing gate parameters (e.g., MoE router/gating layers)."},
+        metadata={
+            "help": "If True, freeze routing gate parameters (e.g., MoE router/gating layers)."
+        },
     )
     freeze_embedding: bool = field(
         default=False,
@@ -122,7 +125,10 @@ def train():
     # ----- Dataset ----------------------------------------------------------------
     def sft_map_fn(row) -> dict:
         prompt_tokens = tokenizer.apply_chat_template(
-            row["messages"][:-1], tokenize=True, add_generation_prompt=True, enable_thinking=False
+            row["messages"][:-1],
+            tokenize=True,
+            add_generation_prompt=True,
+            enable_thinking=False,
         )
         prompt_response_tokens = tokenizer.apply_chat_template(
             row["messages"], tokenize=True, add_generation_prompt=False
@@ -201,7 +207,6 @@ def train():
             perbatch_cutoff=training_args.perbatch_cutoff,
             resp_cutoff_ratio=training_args.resp_cutoff_ratio,
         ),
-
     )
     trainer.train()
     trainer.save_model(os.path.join(training_args.output_dir, "checkpoint-final"))

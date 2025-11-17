@@ -9,6 +9,7 @@ python -u examples/dream/chat.py --model_name_or_path "YOUR_MODEL_PATH" --chat T
 # Raw single-turn generation
 python -u examples/dream/chat.py --model_name_or_path "YOUR_MODEL_PATH" --chat False
 """
+
 import sys
 from dataclasses import dataclass
 import transformers
@@ -16,7 +17,6 @@ import transformers
 import dllm
 from dllm.pipelines import dream
 from dllm.tools.chat import multi_turn_chat, single_turn_generate
-
 
 
 @dataclass
@@ -44,9 +44,7 @@ class GeneratorConfig(dream.DreamGeneratorConfig):
 
 
 def main():
-    parser = transformers.HfArgumentParser(
-        (ScriptArguments, GeneratorConfig)
-    )
+    parser = transformers.HfArgumentParser((ScriptArguments, GeneratorConfig))
     script_args, gen_config = parser.parse_args_into_dataclasses()
     transformers.set_seed(script_args.seed)
 

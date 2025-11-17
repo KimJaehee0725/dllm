@@ -37,7 +37,6 @@ import accelerate
 import dllm
 from dllm.pipelines import dream
 
-
 logger = dllm.utils.get_default_logger(__name__)
 
 
@@ -73,6 +72,7 @@ class DataArguments(dllm.utils.DataArguments):
             )
         },
     )
+
 
 @dataclass
 class TrainingArguments(dllm.utils.TrainingArguments):
@@ -156,7 +156,7 @@ def train():
                 mask_prompt_loss=data_args.mask_prompt_loss,
             )
             dataset = dataset.map(
-                map_fn, 
+                map_fn,
                 num_proc=data_args.num_proc,
                 desc="Mapping dataset to SFT format",
             )

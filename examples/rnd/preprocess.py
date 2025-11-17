@@ -61,7 +61,6 @@
 #         print(f"[OK] Saved to: {output_dir}")
 
 
-
 # def main():
 #     # Parse with tyro
 #     args = tyro.cli(ScriptArguments)
@@ -103,7 +102,12 @@ def main():
         tokenizer=tokenizer,
         mask_prompt_loss=args.mask_prompt_loss,
     )
-    preprocess_sft_dataset(dataset=dataset, map_fn=map_fn, output_dir=args.output_dir, remove_columns=args.remove_columns)
+    preprocess_sft_dataset(
+        dataset=dataset,
+        map_fn=map_fn,
+        output_dir=args.output_dir,
+        remove_columns=args.remove_columns,
+    )
 
 
 if __name__ == "__main__":

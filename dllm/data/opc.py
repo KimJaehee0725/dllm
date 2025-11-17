@@ -7,15 +7,24 @@ from datasets import (
     Dataset,
     IterableDatasetDict,
 )
-from dllm.data.utils import _merge_datasetdicts, _merge_iterabledatasetdicts, _ensure_datasetdict, _ensure_iterabledatasetdict, _ensure_datasetdict
+from dllm.data.utils import (
+    _merge_datasetdicts,
+    _merge_iterabledatasetdicts,
+    _ensure_datasetdict,
+    _ensure_iterabledatasetdict,
+    _ensure_datasetdict,
+)
 
 
-def load_dataset_opc_sft(dataset_name_or_path: str, name: str | None = None, lang: str | None = None) -> DatasetDict:
+def load_dataset_opc_sft(
+    dataset_name_or_path: str, name: str | None = None, lang: str | None = None
+) -> DatasetDict:
     """
     Load OpenCoder OPC SFT dataset(s) and produce a DatasetDict with a train/test split.
     - If `name` is provided: load that specific config.
     - If `name` is None: load *all* available configs and concatenate them.
     """
+
     def _map_to_messages(ds: Dataset) -> Dataset:
         def map_fn(example):
             return {
@@ -51,9 +60,16 @@ def load_dataset_opc_sft(dataset_name_or_path: str, name: str | None = None, lan
     return DatasetDict(ds_dict)
 
 
-def load_dataset_opc_annealing(dataset_name_or_path: str, name: str | None = None, lang: str | None = None, streaming: bool = True) -> DatasetDict:
+def load_dataset_opc_annealing(
+    dataset_name_or_path: str,
+    name: str | None = None,
+    lang: str | None = None,
+    streaming: bool = True,
+) -> DatasetDict:
     def _load_one_config(_name):
-        ds = load_dataset(dataset_name_or_path, _name, split="train", streaming=streaming)
+        ds = load_dataset(
+            dataset_name_or_path, _name, split="train", streaming=streaming
+        )
         if lang:
             if _name in ["synthetic_code_snippet", "algorithmic_corpus"]:
                 ds = ds.filter(lambda row: row["lang"] == lang)
@@ -62,20 +78,27 @@ def load_dataset_opc_annealing(dataset_name_or_path: str, name: str | None = Non
             else:
                 raise NotImplementedError
         # return IterableDatasetDict({"train": ds})
-        if streaming: return _ensure_iterabledatasetdict(ds)
+        if streaming:
+            return _ensure_iterabledatasetdict(ds)
         return _ensure_datasetdict(ds)
 
     if name is not None:
         return _load_one_config(name)
 
     if streaming:
-        parts = [_load_one_config(name) for name in get_dataset_config_names(dataset_name_or_path)]
+        parts = [
+            _load_one_config(name)
+            for name in get_dataset_config_names(dataset_name_or_path)
+        ]
         merged = parts[0]
         for p in parts[1:]:
             merged = _merge_iterabledatasetdicts(merged, p)
         return merged
     else:
-        parts = [_load_one_config(name) for name in get_dataset_config_names(dataset_name_or_path)]
+        parts = [
+            _load_one_config(name)
+            for name in get_dataset_config_names(dataset_name_or_path)
+        ]
         if len(parts) == 1:
             return _ensure_datasetdict(parts[0])
         merged = parts[0]

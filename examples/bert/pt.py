@@ -30,7 +30,6 @@ import accelerate
 
 import dllm
 
-
 logger = dllm.utils.get_default_logger(__name__)
 
 
@@ -52,6 +51,7 @@ class DataArguments(dllm.utils.DataArguments):
             "help": "False when adjacent samples from the datasets are semantically coherent."
         },
     )
+
 
 @dataclass
 class TrainingArguments(dllm.utils.TrainingArguments):
@@ -81,23 +81,25 @@ def train():
     # ----- Dataset ----------------------------------------------------------------
     with accelerate.PartialState().local_main_process_first():
         dataset = dllm.data.load_pt_dataset(
-            data_args.dataset_args, 
+            data_args.dataset_args,
             streaming=data_args.streaming,
         )
         dataset = dataset.map(
             functools.partial(
-                dllm.utils.tokenize_and_group, 
-                tokenizer=tokenizer, 
-                text_field=data_args.text_field, 
-                seq_length=data_args.max_length, 
+                dllm.utils.tokenize_and_group,
+                tokenizer=tokenizer,
+                text_field=data_args.text_field,
+                seq_length=data_args.max_length,
                 insert_eos=data_args.insert_eos,
-                drop_tail=data_args.drop_tail),
+                drop_tail=data_args.drop_tail,
+            ),
             batched=True,
             remove_columns=dataset["train"].column_names,
             **({} if data_args.streaming else {"num_proc": data_args.num_proc}),
             **({} if data_args.streaming else {"desc": "Mapping dataset to PT format"}),
         )
-        if data_args.streaming: dataset = dataset.shuffle(seed=training_args.seed)
+        if data_args.streaming:
+            dataset = dataset.shuffle(seed=training_args.seed)
 
     # ----- Training --------------------------------------------------------------
     accelerate.PartialState().wait_for_everyone()

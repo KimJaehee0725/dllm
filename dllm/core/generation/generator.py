@@ -32,9 +32,9 @@ class BaseGenerator(ABC):
     @torch.no_grad()
     def generate(
         self,
-        prompts: list[torch.Tensor, list], 
-        config: GeneratorConfig | None = None, 
-        **kwargs
+        prompts: list[torch.Tensor, list],
+        config: GeneratorConfig | None = None,
+        **kwargs,
     ) -> GeneratorOutput:
         raise NotImplementedError
 
@@ -42,9 +42,8 @@ class BaseGenerator(ABC):
     @torch.no_grad()
     def infill(
         self,
-        inputs: list[torch.Tensor, list], 
-        config: GeneratorConfig | None = None, 
-        **kwargs
+        inputs: list[torch.Tensor, list],
+        config: GeneratorConfig | None = None,
+        **kwargs,
     ) -> GeneratorOutput:
         raise NotImplementedError
-

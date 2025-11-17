@@ -5,7 +5,6 @@ from torch import nn
 import transformers
 
 
-
 class EditFlowModernBertConfig(transformers.ModernBertConfig):
     model_type = "editflow-modernbert"  # <- NEW model_type
 
@@ -35,13 +34,13 @@ class EditFlowModernBertModel(transformers.ModernBertForMaskedLM):
         input_ids: torch.LongTensor,
         attention_mask: torch.Tensor | None = None,
         t: torch.Tensor | None = None,
-        **kwargs
+        **kwargs,
     ):
         output = super().forward(
             input_ids=input_ids,
             attention_mask=attention_mask,
             output_hidden_states=True,
-            **kwargs
+            **kwargs,
         )
         h = output["hidden_states"][-1]  # final hidden states
         h = self.head(h)

@@ -10,7 +10,11 @@ import torch.distributions as dists
 
 from dllm.utils.generation_utils import get_num_transfer_tokens
 from dllm.pipelines.dream.utils import top_p_logits, top_k_logits
-from dllm.core.generation.generator import GeneratorOutput, GeneratorConfig, BaseGenerator
+from dllm.core.generation.generator import (
+    GeneratorOutput,
+    GeneratorConfig,
+    BaseGenerator,
+)
 
 
 def sample_tokens(
@@ -56,7 +60,9 @@ def sample_tokens(
 @dataclass
 class DreamGeneratorConfig(GeneratorConfig):
     max_new_tokens: int = 20
-    max_length: int = None # The max_length is set as input_ids.shape[1] + 20: generation_config.max_length = generation_config.max_length + input_ids_length
+    max_length: int = (
+        None  # The max_length is set as input_ids.shape[1] + 20: generation_config.max_length = generation_config.max_length + input_ids_length
+    )
     steps: int = 512
     eps: float = 1e-3
     alg: str = "origin"
@@ -72,11 +78,11 @@ class DreamGenerator(BaseGenerator):
     @torch.no_grad()
     def generate(
         self,
-        inputs: list[torch.Tensor, list], 
-        config: DreamGeneratorConfig | None = None, 
+        inputs: list[torch.Tensor, list],
+        config: DreamGeneratorConfig | None = None,
         generation_tokens_hook_func=lambda step, x, logits: x,
         generation_logits_hook_func=lambda step, x, logits: logits,
-        **kwargs
+        **kwargs,
     ) -> GeneratorOutput | torch.Tensor:
         """
         Diffusion-style masked decoding for *generation from inputs*.
@@ -95,7 +101,9 @@ class DreamGenerator(BaseGenerator):
         temperature = kwargs.get("temperature", config.temperature)
         top_p = kwargs.get("top_p", config.top_p)
         top_k = kwargs.get("top_k", config.top_k)
-        stochastic_transfer = kwargs.get("stochastic_transfer", config.stochastic_transfer)
+        stochastic_transfer = kwargs.get(
+            "stochastic_transfer", config.stochastic_transfer
+        )
         # generation_tokens_hook_func = kwargs.get("generation_tokens_hook_func", config.generation_tokens_hook_func)
         # generation_logits_hook_func = kwargs.get("generation_logits_hook_func", config.generation_logits_hook_func)
         return_dict_in_generate = kwargs.get(
@@ -129,7 +137,9 @@ class DreamGenerator(BaseGenerator):
             x[i, start : start + prompt_lens[i]] = p
             x[i, start + prompt_lens[i] : T] = mask_token_id
 
-        attention_mask = torch.zeros((B, T), dtype=torch.float32, device=self.model.device)
+        attention_mask = torch.zeros(
+            (B, T), dtype=torch.float32, device=self.model.device
+        )
         for j, L in enumerate(seq_length):
             if L > 0:
                 attention_mask[j, -L:] = 1.0  # Mandate to be left-padding
@@ -216,15 +226,14 @@ class DreamGenerator(BaseGenerator):
         else:
             return GeneratorOutput(sequences=x, histories=histories)
 
-
     @torch.no_grad()
     def infill(
         self,
-        inputs: list[torch.Tensor, list], 
-        config, 
+        inputs: list[torch.Tensor, list],
+        config,
         generation_tokens_hook_func=lambda step, x, logits: x,
         generation_logits_hook_func=lambda step, x, logits: logits,
-        **kwargs
+        **kwargs,
     ) -> GeneratorOutput | torch.Tensor:
         """
         Fill in-place the tokenizer's `<mask>` tokens contained in `inputs`.
@@ -289,7 +298,9 @@ class DreamGenerator(BaseGenerator):
         temperature = kwargs.get("temperature", config.temperature)
         top_p = kwargs.get("top_p", config.top_p)
         top_k = kwargs.get("top_k", config.top_k)
-        stochastic_transfer = kwargs.get("stochastic_transfer", config.stochastic_transfer)
+        stochastic_transfer = kwargs.get(
+            "stochastic_transfer", config.stochastic_transfer
+        )
         # generation_tokens_hook_func = kwargs.get("stochastic_transfer", config.generation_tokens_hook_func)
         # generation_logits_hook_func = kwargs.get("stochastic_transfer", config.generation_logits_hook_func)
         return_dict_in_generate = kwargs.get(

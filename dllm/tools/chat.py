@@ -30,6 +30,7 @@ def banner_line(text: str, width: int = L, fill: str = "=") -> str:
     right = fill_len - left
     return f"{fill * left}{text}{fill * right}"
 
+
 def print_wrapped(text: str, width: int = L):
     """Print text with automatic line wrapping."""
     wrapped = textwrap.fill(text, width=width)
@@ -55,7 +56,6 @@ def boxed(text: str, width: int = L, padding: int = 1):
         inner = line.center(content_width)
         print(margin + "│" + " " * padding + inner + " " * padding + "│")
     print(bottom)
-
 
 
 def decode_trim(tokenizer, seq_ids_list, input_ids_list) -> str:
@@ -100,8 +100,10 @@ def decode_trim(tokenizer, seq_ids_list, input_ids_list) -> str:
         # in case there is no eos_id or eot_id, just strings
         eos = getattr(tokenizer, "eos_token", None)
         eot = getattr(tokenizer, "eot_token", None)
-        if eos: text = text.split(eos)[0]
-        if eot: text = text.split(eot)[0]
+        if eos:
+            text = text.split(eos)[0]
+        if eot:
+            text = text.split(eot)[0]
         # return text.strip()
         sequences.append(text)
     return sequences
@@ -146,9 +148,12 @@ def build_chat_inputs(tokenizer, messages: List[dict], add_generation_prompt: bo
         tokenize=True,
     )
 
+
 def visualize_histories(tokenizer, histories):
     try:
-        terminal_visualizer = dllm.core.generation.visualizer.TerminalVisualizer(tokenizer=tokenizer)
+        terminal_visualizer = dllm.core.generation.visualizer.TerminalVisualizer(
+            tokenizer=tokenizer
+        )
         terminal_visualizer.visualize(histories, rich=True)
     except Exception as e:
         print(f"(Visualization skipped: {e})")
@@ -235,4 +240,3 @@ def multi_turn_chat(generator, gen_config, visualize: bool):
         else:
             print("\nExiting. Bye!")
             return
-

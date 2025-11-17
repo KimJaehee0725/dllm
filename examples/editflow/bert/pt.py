@@ -11,6 +11,7 @@ class ModelArguments(editflow_pt.ModelArguments):
     model_name_or_path: str = "answerdotai/ModernBERT-large"
     lm_head_key: str = "decoder"
 
+
 @dataclass
 class DataArguments(editflow_pt.DataArguments):
     dataset_args: str = "Trelis/tiny-shakespeare"
