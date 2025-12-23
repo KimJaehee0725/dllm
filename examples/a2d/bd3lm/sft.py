@@ -67,6 +67,10 @@ class TrainingArguments(dllm.utils.TrainingArguments):
     # a2d-specific
     block_size: int = 32
     right_shift_logits: bool = False
+    # contrastive
+    contrastive_mode: str = "empty"  # one of: empty, vanilla, gradcache
+    contrastive_tau: float = 20.0
+    contrastive_gradcache_micro_bsz: int = 8
 
 
 def train():
@@ -106,7 +110,17 @@ def train():
     # ----- Training --------------------------------------------------------------
     accelerate.PartialState().wait_for_everyone()
     logger.info("Start training...")
-    trainer = dllm.core.trainers.BD3LMTrainer(
+    trainer_cls = dllm.core.trainers.BD3LMTrainer
+    trainer_kwargs = {}
+    if training_args.contrastive_mode != "empty":
+        trainer_cls = dllm.core.trainers.BD3LMContTrainer
+        trainer_kwargs = {
+            "contrastive_mode": training_args.contrastive_mode,
+            "tau": training_args.contrastive_tau,
+            "gradcache_micro_bsz": training_args.contrastive_gradcache_micro_bsz,
+        }
+
+    trainer = trainer_cls(
         model=model,
         tokenizer=tokenizer,
         train_dataset=dataset["train"],
@@ -124,6 +138,7 @@ def train():
                 block_size=training_args.block_size,
             )
         ),
+        **trainer_kwargs,
     )
     trainer.train()
     trainer.save_model(os.path.join(training_args.output_dir, "checkpoint-final"))
