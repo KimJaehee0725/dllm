@@ -40,6 +40,10 @@ class A2DQwen3Model(transformers.Qwen3Model):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
+        # handle optional outputs explicitly so they are not forwarded to layers
+        output_hidden_states = kwargs.pop("output_hidden_states", False)
+        output_attentions = kwargs.pop("output_attentions", False)
+
         if use_cache and past_key_values is None:
             past_key_values = DynamicCache(config=self.config)
 
@@ -95,7 +99,9 @@ class A2DQwen3Model(transformers.Qwen3Model):
                 isinstance(attention_mask, BlockMask)
                 or (isinstance(attention_mask, torch.Tensor) and attention_mask.ndim == 4)
             ):
-                attention_mask = _prepare_4d_attention_mask(attention_mask, self.dtype)
+                attention_mask = _prepare_4d_attention_mask(
+                    attention_mask, self.dtype, tgt_len=inputs_embeds.shape[1]
+                )
 
             # 3) Build causal mask mapping used by the attention layers
             causal_mask_mapping = {"full_attention": attention_mask}
@@ -108,6 +114,7 @@ class A2DQwen3Model(transformers.Qwen3Model):
         # -------------------------------------------------------------
 
         hidden_states = inputs_embeds
+        # all_hidden_states = [hidden_states] if output_hidden_states else None
 
         # create position embeddings to be shared across the decoder layers
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
@@ -125,9 +132,12 @@ class A2DQwen3Model(transformers.Qwen3Model):
             )
 
         hidden_states = self.norm(hidden_states)
+
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
             past_key_values=past_key_values if use_cache else None,
+            hidden_states=hidden_states,
+            attentions=None if output_attentions else None,
         )
 
 
@@ -168,4 +178,3 @@ if __name__ == "__main__":
     model = A2DQwen3LMHeadModel(config)
     model.save_pretrained("models-tmp/a2d-qwen3")
     auto_model = AutoModel.from_pretrained("models-tmp/a2d-qwen3")
-
